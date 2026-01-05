@@ -706,9 +706,12 @@
                     
                     console.log('✅ Voice captured:', transcript);
                     console.log('Is final:', results[lastResultIndex].isFinal);
+                    console.log('🔄 Calling setNewTask with:', transcript);
                     
                     // Update text field with interim results too
                     setNewTask(transcript);
+                    
+                    console.log('✅ setNewTask called successfully');
                     
                     // If it's the final result, stop listening
                     if (results[lastResultIndex].isFinal) {
@@ -1377,8 +1380,13 @@
                                         }`}
                                     >
                                         <Mic size={24} />
-                                        {isListening ? t.listening : t.voiceInput}
+                                        {isListening ? '🔴 ' + t.listening : t.voiceInput}
                                     </button>
+                                    {isListening && (
+                                        <div className="mb-4 p-3 bg-yellow-100 border-2 border-yellow-400 rounded-lg text-sm">
+                                            🎤 <strong>Listening...</strong> Speak now! Your speech will appear above.
+                                        </div>
+                                    )}
                                     <div className="space-y-3">
                                         <button
                                             onClick={() => addTask(selectedQuadrant)}
