@@ -681,23 +681,13 @@
                     return;
                 }
 
-                // Check for microphone permission
-                if (navigator.permissions) {
-                    navigator.permissions.query({ name: 'microphone' }).then((result) => {
-                        console.log('Microphone permission:', result.state);
-                        if (result.state === 'denied') {
-                            alert('Microphone access denied. Please enable it in your browser settings.');
-                            return;
-                        }
-                    }).catch((err) => {
-                        console.log('Permission check not supported:', err);
-                    });
-                }
-
                 const recognition = new SpeechRecognition();
                 recognition.lang = language === 'en' ? 'en-US' : language === 'fr_ca' ? 'fr-CA' : 'fr-FR';
-                recognition.interimResults = false;
+                recognition.interimResults = true; // Changed to true to get interim results
                 recognition.maxAlternatives = 1;
+                recognition.continuous = false; // Single result
+
+                console.log('🎤 Starting recognition with language:', recognition.lang);
 
                 recognition.onstart = () => {
                     setIsListening(true);
@@ -705,10 +695,40 @@
                 };
 
                 recognition.onresult = (event) => {
-                    const transcript = event.results[0][0].transcript;
+                    console.log('📝 Got result event:', event);
+                    
+                    // Get the transcript from the last result
+                    const results = event.results;
+                    const lastResultIndex = results.length - 1;
+                    const transcript = results[lastResultIndex][0].transcript;
+                    
                     console.log('✅ Voice captured:', transcript);
+                    console.log('Is final:', results[lastResultIndex].isFinal);
+                    
+                    // Update text field with interim results too
                     setNewTask(transcript);
-                    setIsListening(false);
+                    
+                    // If it's the final result, stop listening
+                    if (results[lastResultIndex].isFinal) {
+                        console.log('✅ Final result captured');
+                        setIsListening(false);
+                    }
+                };
+
+                recognition.onspeechstart = () => {
+                    console.log('🗣️ Speech detected!');
+                };
+
+                recognition.onspeechend = () => {
+                    console.log('🔇 Speech ended');
+                };
+
+                recognition.onaudiostart = () => {
+                    console.log('🎙️ Audio capture started');
+                };
+
+                recognition.onaudioend = () => {
+                    console.log('🎙️ Audio capture ended');
                 };
 
                 recognition.onerror = (event) => {
@@ -718,7 +738,7 @@
                     let errorMessage = 'Voice recognition error: ';
                     switch(event.error) {
                         case 'no-speech':
-                            errorMessage += 'No speech detected. Please try again.';
+                            errorMessage += 'No speech detected. Please try again and speak clearly.';
                             break;
                         case 'audio-capture':
                             errorMessage += 'Microphone not found or not working.';
@@ -729,6 +749,9 @@
                         case 'network':
                             errorMessage += 'Network error. Voice recognition needs internet connection.';
                             break;
+                        case 'aborted':
+                            errorMessage += 'Voice recognition was aborted.';
+                            break;
                         default:
                             errorMessage += event.error;
                     }
@@ -736,15 +759,15 @@
                 };
 
                 recognition.onend = () => {
-                    console.log('Voice recognition ended');
+                    console.log('🏁 Voice recognition ended');
                     setIsListening(false);
                 };
 
                 try {
                     recognition.start();
-                    console.log('Starting recognition...');
+                    console.log('🚀 Recognition start command sent');
                 } catch (err) {
-                    console.error('Failed to start recognition:', err);
+                    console.error('❌ Failed to start recognition:', err);
                     alert('Could not start voice recognition: ' + err.message);
                     setIsListening(false);
                 }
