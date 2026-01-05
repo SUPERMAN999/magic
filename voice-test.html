@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+    <script>eruda.init();</script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        button {
+            width: 100%;
+            padding: 20px;
+            font-size: 18px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+        }
+        .start {
+            background: purple;
+            color: white;
+        }
+        .listening {
+            background: red;
+            color: white;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        textarea {
+            width: 100%;
+            height: 150px;
+            font-size: 16px;
+            padding: 10px;
+            margin: 10px 0;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+        }
+        .status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>🎤 Voice Recognition Test</h1>
+    
+    <div id="status"></div>
+    
+    <button id="micBtn" class="start">🎤 Click to Start Voice Input</button>
+    
+    <textarea id="output" placeholder="Your speech will appear here..."></textarea>
+    
+    <div id="logs" style="background: #f5f5f5; padding: 10px; border-radius: 8px; max-height: 300px; overflow-y: auto;">
+        <strong>Console Logs:</strong>
+        <div id="logContent"></div>
+    </div>
+
+    <script>
+        const micBtn = document.getElementById('micBtn');
+        const output = document.getElementById('output');
+        const statusDiv = document.getElementById('status');
+        const logContent = document.getElementById('logContent');
+        
+        let isListening = false;
+        
+        function log(message, isError = false) {
+            console.log(message);
+            const p = document.createElement('p');
+            p.textContent = new Date().toLocaleTimeString() + ' - ' + message;
+            p.style.color = isError ? 'red' : 'black';
+            p.style.margin = '5px 0';
+            logContent.appendChild(p);
+            logContent.parentElement.scrollTop = logContent.parentElement.scrollHeight;
+        }
+        
+        function showStatus(message, type = 'info') {
+            statusDiv.className = 'status ' + type;
+            statusDiv.textContent = message;
+            statusDiv.style.display = 'block';
+        }
+        
+        function hideStatus() {
+            statusDiv.style.display = 'none';
+        }
+        
+        micBtn.addEventListener('click', () => {
+            if (isListening) {
+                log('Already listening...');
+                return;
+            }
+            
+            log('🎤 Button clicked - starting voice recognition');
+            
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            if (!SpeechRecognition) {
+                log('❌ Speech Recognition API not supported', true);
+                showStatus('❌ Voice recognition not supported in this browser', 'error');
+                return;
+            }
+            
+            log('✅ Speech Recognition API available');
+            
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.interimResults = true;
+            recognition.continuous = false;
+            
+            log('📝 Configuration: lang=' + recognition.lang + ', interimResults=' + recognition.interimResults);
+            
+            recognition.onstart = () => {
+                isListening = true;
+                micBtn.className = 'listening';
+                micBtn.textContent = '🔴 Listening... Speak now!';
+                showStatus('🎤 LISTENING - Speak clearly!', 'success');
+                log('✅ Recognition started successfully');
+            };
+            
+            recognition.onresult = (event) => {
+                log('📝 onresult event fired!');
+                const results = event.results;
+                const lastIndex = results.length - 1;
+                const transcript = results[lastIndex][0].transcript;
+                const isFinal = results[lastIndex].isFinal;
+                
+                log('✅ Speech captured: "' + transcript + '" (final: ' + isFinal + ')');
+                
+                output.value = transcript;
+                
+                if (isFinal) {
+                    log('✅ Final result received');
+                    showStatus('✅ Captured: ' + transcript, 'success');
+                }
+            };
+            
+            recognition.onspeechstart = () => {
+                log('🗣️ Speech detected - you are speaking!');
+            };
+            
+            recognition.onspeechend = () => {
+                log('🔇 Speech ended - you stopped speaking');
+            };
+            
+            recognition.onaudiostart = () => {
+                log('🎙️ Audio capture started');
+            };
+            
+            recognition.onaudioend = () => {
+                log('🎙️ Audio capture ended');
+            };
+            
+            recognition.onerror = (event) => {
+                log('❌ ERROR: ' + event.error, true);
+                showStatus('❌ Error: ' + event.error, 'error');
+                isListening = false;
+                micBtn.className = 'start';
+                micBtn.textContent = '🎤 Click to Start Voice Input';
+                
+                if (event.error === 'no-speech') {
+                    log('💡 TIP: Make sure you speak clearly and loud enough', true);
+                } else if (event.error === 'not-allowed') {
+                    log('💡 TIP: Check microphone permissions in browser settings', true);
+                }
+            };
+            
+            recognition.onend = () => {
+                log('🏁 Recognition ended');
+                isListening = false;
+                micBtn.className = 'start';
+                micBtn.textContent = '🎤 Click to Start Voice Input';
+                
+                if (!output.value) {
+                    showStatus('⚠️ No speech detected - try again', 'error');
+                }
+            };
+            
+            try {
+                log('🚀 Calling recognition.start()...');
+                recognition.start();
+            } catch (err) {
+                log('❌ Failed to start: ' + err.message, true);
+                showStatus('❌ Failed to start: ' + err.message, 'error');
+            }
+        });
+        
+        log('✅ Page loaded - ready to test voice input');
+        log('👆 Click the purple button to start');
+    </script>
+</body>
+</html>
